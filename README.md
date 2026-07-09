@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="when2leave logo" width="160" />
+</p>
+
 # when2leave
 
 **when2leave** watches a Nextcloud calendar, tracks your real-time location, computes
