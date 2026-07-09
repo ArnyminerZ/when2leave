@@ -16,7 +16,7 @@ from __future__ import annotations
 import enum
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
@@ -30,6 +30,33 @@ from sqlalchemy.orm import (
     relationship,
     sessionmaker,
 )
+from sqlalchemy.types import TypeDecorator
+
+
+class UTCDateTime(TypeDecorator):
+    """A ``DateTime`` that survives SQLite's lack of timezone-aware storage.
+
+    SQLite has no native tz-aware datetime type, so plain ``DateTime(timezone=True)``
+    silently drops the offset on write and returns naive datetimes on read -- comparing
+    those against a tz-aware ``datetime.now(tz=UTC)`` then raises ``TypeError``. Every
+    datetime this app persists is UTC, so we normalize to naive UTC on the way in and
+    reattach ``tzinfo=UTC`` on the way out.
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect: object) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is not None:
+            value = value.astimezone(UTC).replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value: datetime | None, dialect: object) -> datetime | None:
+        if value is None:
+            return None
+        return value.replace(tzinfo=UTC)
 
 
 class Base(DeclarativeBase):
@@ -66,8 +93,8 @@ class Event(Base):
     recurrence_id: Mapped[str] = mapped_column(String, default="")
     calendar: Mapped[str] = mapped_column(String)
     title: Mapped[str] = mapped_column(String)
-    start: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    start: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    end: Mapped[datetime] = mapped_column(UTCDateTime())
     location_text: Mapped[str] = mapped_column(String)
     transp: Mapped[str] = mapped_column(String, default="OPAQUE")
     ical_status: Mapped[str] = mapped_column(String, default="CONFIRMED")
@@ -80,16 +107,16 @@ class Event(Base):
     resolved_lon: Mapped[float | None] = mapped_column(Float, default=None)
     resolved_address: Mapped[str | None] = mapped_column(String, default=None)
 
-    leave_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    leave_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), default=None)
     notify_state: Mapped[NotifyState] = mapped_column(
         Enum(NotifyState, native_enum=False), default=NotifyState.NONE
     )
     last_notified_leave_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=None
+        UTCDateTime(), default=None
     )
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime())
 
     location_updates: Mapped[list[LocationUpdate]] = relationship(
         back_populates="event", cascade="all, delete-orphan", order_by="LocationUpdate.ts"
@@ -104,12 +131,12 @@ class LocationUpdate(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"))
-    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ts: Mapped[datetime] = mapped_column(UTCDateTime())
     current_lat: Mapped[float] = mapped_column(Float)
     current_lon: Mapped[float] = mapped_column(Float)
     distance_m: Mapped[float] = mapped_column(Float)
     travel_time_s: Mapped[float] = mapped_column(Float)
-    leave_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    leave_at: Mapped[datetime] = mapped_column(UTCDateTime())
     routing_provider: Mapped[str] = mapped_column(String)
 
     event: Mapped[Event] = relationship(back_populates="location_updates")
@@ -124,7 +151,7 @@ class GeocodeCache(Base):
     lat: Mapped[float] = mapped_column(Float)
     lon: Mapped[float] = mapped_column(Float)
     display_name: Mapped[str] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime())
 
 
 class KV(Base):
@@ -153,9 +180,9 @@ class DavPushSubscription(Base):
     registration_url: Mapped[str] = mapped_column(String)
     public_key: Mapped[str] = mapped_column(String)
     auth_secret: Mapped[str] = mapped_column(String)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime())
 
 
 def create_engine(database_path: str) -> Engine:
