@@ -1,0 +1,21 @@
+{% if updates %}
+<table style="margin: 0.4rem 0;">
+  <thead>
+    <tr><th>Time</th><th>Current location</th><th>Distance</th><th>Travel time</th><th>Leave by</th><th>Provider</th></tr>
+  </thead>
+  <tbody>
+    {% for u in updates %}
+    <tr>
+      <td>{{ u.ts.strftime('%H:%M:%S') }}</td>
+      <td>{{ '%.4f, %.4f' % (u.current_lat, u.current_lon) }}</td>
+      <td>{{ '%.2f km' % (u.distance_m / 1000) }}</td>
+      <td>{{ (u.travel_time_s / 60) | round(1) }} min</td>
+      <td>{{ u.leave_at.strftime('%H:%M') }}</td>
+      <td>{{ u.routing_provider }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<span class="empty">No recompute history yet.</span>
+{% endif %}

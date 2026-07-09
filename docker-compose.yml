@@ -1,0 +1,22 @@
+services:
+  when2leave:
+    image: ghcr.io/arnyminerz/calendar-notifier:latest
+    # Uncomment to build from source instead of pulling the published image:
+    # build: .
+    container_name: when2leave
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - when2leave-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  when2leave-data:

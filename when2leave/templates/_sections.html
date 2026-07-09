@@ -1,0 +1,85 @@
+<div class="status-bar">
+  <span>
+    <span class="dot {{ 'ok' if status.last_sync_error is none else 'bad' }}"></span>
+    Last sync: <b>{{ status.last_sync_at.strftime('%Y-%m-%d %H:%M:%S UTC') if status.last_sync_at else 'never' }}</b>
+    {% if status.last_sync_error %}<span style="color: var(--bad);"> ({{ status.last_sync_error }})</span>{% endif %}
+  </span>
+  <span>
+    <span class="dot {{ 'ok' if status.dawarich_reachable else ('bad' if status.dawarich_reachable is not none else 'unknown') }}"></span>
+    Dawarich: <b>{{ 'reachable' if status.dawarich_reachable else ('unreachable' if status.dawarich_reachable is not none else 'unknown') }}</b>
+  </span>
+  <span>
+    <span class="dot {{ 'ok' if status.davpush_enabled and status.davpush_subscription_count > 0 else 'unknown' }}"></span>
+    DAV Push: <b>{{ status.davpush_subscription_count }}</b> subscription(s){{ '' if status.davpush_enabled else ' (disabled, polling only)' }}
+  </span>
+  <span>Active: <b>{{ counts.active }}</b> &middot; Queued: <b>{{ counts.queued }}</b> &middot; Recent: <b>{{ counts.recent }}</b></span>
+</div>
+
+<h2>Active ({{ counts.active }})</h2>
+{% if active %}
+<table>
+  <thead>
+    <tr>
+      <th>Event</th><th>Starts</th><th>Address</th><th>Distance</th><th>Travel</th>
+      <th>Leave by</th><th>Notify</th><th>Next check</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in active %}
+    <tr class="event-row" hx-get="/partials/events/{{ e.id }}/history" hx-target="#hist-{{ e.id }}" hx-swap="innerHTML" onclick="document.getElementById('hist-{{ e.id }}-row').classList.toggle('hidden'); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'table-row' : 'none';">
+      <td>{{ e.title }}</td>
+      <td>{{ e.start.strftime('%a %H:%M') }}</td>
+      <td title="{{ e.location_text }}">{{ e.resolved_address or e.location_text }}</td>
+      <td>{{ '%.1f km' % (e.last_distance_km) if e.last_distance_km is defined else '—' }}</td>
+      <td>{{ e.last_travel_min ~ ' min' if e.last_travel_min is defined else '—' }}</td>
+      <td>{{ e.leave_at.strftime('%H:%M') if e.leave_at else '—' }}</td>
+      <td><span class="badge {{ e.notify_state }}">{{ e.notify_state.replace('_', ' ') }}</span></td>
+      <td>{{ e.next_recompute_in_s ~ 's' if e.next_recompute_in_s is defined else '—' }}</td>
+    </tr>
+    <tr id="hist-{{ e.id }}-row" style="display: none;">
+      <td colspan="8" id="hist-{{ e.id }}" class="history-row"><span class="empty">Loading…</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No events are currently being actively tracked.</div>
+{% endif %}
+
+<h2>Queued ({{ counts.queued }})</h2>
+{% if queued %}
+<table>
+  <thead><tr><th>Event</th><th>Starts</th><th>Location</th><th>Enters tracking at</th></tr></thead>
+  <tbody>
+    {% for e in queued %}
+    <tr>
+      <td>{{ e.title }}</td>
+      <td>{{ e.start.strftime('%a %Y-%m-%d %H:%M') }}</td>
+      <td>{{ e.location_text }}</td>
+      <td>{{ e.activates_at.strftime('%a %H:%M') if e.activates_at else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No qualifying events waiting to enter the tracking window.</div>
+{% endif %}
+
+<h2>Recently done / dropped ({{ counts.recent }})</h2>
+{% if recent %}
+<table>
+  <thead><tr><th>Event</th><th>Starts</th><th>Status</th><th>Updated</th></tr></thead>
+  <tbody>
+    {% for e in recent %}
+    <tr>
+      <td>{{ e.title }}</td>
+      <td>{{ e.start.strftime('%a %Y-%m-%d %H:%M') }}</td>
+      <td><span class="badge {{ e.status }}">{{ e.status }}</span></td>
+      <td>{{ e.updated_at.strftime('%H:%M:%S') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">Nothing here yet.</div>
+{% endif %}
