@@ -111,9 +111,7 @@ class Event(Base):
     notify_state: Mapped[NotifyState] = mapped_column(
         Enum(NotifyState, native_enum=False), default=NotifyState.NONE
     )
-    last_notified_leave_at: Mapped[datetime | None] = mapped_column(
-        UTCDateTime(), default=None
-    )
+    last_notified_leave_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), default=None)
 
     created_at: Mapped[datetime] = mapped_column(UTCDateTime())
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime())

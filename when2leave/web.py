@@ -15,6 +15,7 @@ from typing import Annotated, Any
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -27,6 +28,7 @@ from when2leave.tracker import Tracker
 logger = get_logger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+STATIC_DIR = Path(__file__).parent / "static"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 _security = HTTPBasic(auto_error=False)
@@ -43,6 +45,7 @@ def create_app(
     app.state.settings = settings
     app.state.session_factory = session_factory
     app.state.tracker = tracker
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     def require_auth(
         credentials: Annotated[HTTPBasicCredentials | None, Depends(_security)],
