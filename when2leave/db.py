@@ -33,7 +33,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.types import TypeDecorator
 
 
-class UTCDateTime(TypeDecorator):
+class UTCDateTime(TypeDecorator[datetime]):
     """A ``DateTime`` that survives SQLite's lack of timezone-aware storage.
 
     SQLite has no native tz-aware datetime type, so plain ``DateTime(timezone=True)``

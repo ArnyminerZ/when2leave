@@ -6,6 +6,8 @@
   <title>when2leave</title>
   <link rel="icon" type="image/png" href="/static/logo.png" />
   <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-BBDmZzVt6vjz5YbUqWbjFPoBRoiVYLdxZKVKm3iUwzr/RXlQXzP3lqrn+VeqIB4H" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <style>
     :root {
       color-scheme: light dark;
@@ -46,14 +48,91 @@
     .empty { padding: 1rem; color: var(--muted); font-style: italic; font-size: 0.88rem; }
     .history-row td { background: color-mix(in srgb, var(--fg) 3%, var(--card)); }
     a { color: var(--accent); }
+    .map-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    #map { height: 320px; background: var(--border); }
+    .map-meta { padding: 0.6rem 1.1rem; font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--border); }
+    .map-meta b { color: var(--fg); }
   </style>
 </head>
 <body>
   <h1>when2leave</h1>
   <p style="color: var(--muted); margin-top: 0;">Real-time travel-time tracking for your calendar.</p>
 
+  <h2 style="margin-top: 0;">Current location</h2>
+  <div class="map-card">
+    <div id="map"></div>
+    <div class="map-meta">
+      Position as of <b id="location-time">{{ status.current_location.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if status.current_location else 'no data yet' }}</b>
+      <span id="location-age"></span>
+    </div>
+  </div>
+
   <div id="sections" hx-get="/partials/sections" hx-trigger="every 15s" hx-swap="innerHTML">
     {% include "_sections.html" %}
   </div>
+
+  <script>
+    (function () {
+      {% if status.current_location %}
+      const initialLat = {{ status.current_location.lat }};
+      const initialLon = {{ status.current_location.lon }};
+      const initialTs = "{{ status.current_location.timestamp.isoformat() }}";
+      {% else %}
+      const initialLat = null;
+      const initialLon = null;
+      const initialTs = null;
+      {% endif %}
+
+      const map = L.map('map');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+
+      let marker = null;
+      let lastTimestamp = initialTs;
+
+      function setPosition(lat, lon) {
+        const latlng = [lat, lon];
+        if (marker === null) {
+          marker = L.marker(latlng).addTo(map);
+          map.setView(latlng, 15);
+        } else {
+          marker.setLatLng(latlng);
+        }
+      }
+
+      if (initialLat !== null && initialLon !== null) {
+        setPosition(initialLat, initialLon);
+      } else {
+        map.setView([0, 0], 2);
+      }
+
+      function updateAgeLabel() {
+        const label = document.getElementById('location-age');
+        if (!lastTimestamp) { label.textContent = ''; return; }
+        const ageS = Math.max(0, Math.floor((Date.now() - new Date(lastTimestamp).getTime()) / 1000));
+        label.textContent = '(' + ageS + 's ago)';
+      }
+
+      function refreshLocation() {
+        fetch('/api/location', { headers: { 'Accept': 'application/json' } })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.lat === null || data.lon === null) return;
+            setPosition(data.lat, data.lon);
+            lastTimestamp = data.timestamp;
+            document.getElementById('location-time').textContent =
+              new Date(data.timestamp).toUTCString().replace('GMT', 'UTC');
+            updateAgeLabel();
+          })
+          .catch(() => {});
+      }
+
+      updateAgeLabel();
+      setInterval(updateAgeLabel, 1000);
+      setInterval(refreshLocation, 15000);
+    })();
+  </script>
 </body>
 </html>

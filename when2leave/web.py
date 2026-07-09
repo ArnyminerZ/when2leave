@@ -99,6 +99,14 @@ def create_app(
                 request, "_history.html", {"updates": [_update_to_dict(u) for u in updates]}
             )
 
+    @app.get("/api/location")
+    async def api_location(_auth: None = Depends(require_auth)) -> dict[str, Any]:
+        """The most recent Dawarich point, keyed by when it was recorded (not fetched)."""
+        location = tracker.status.current_location
+        if location is None:
+            return {"lat": None, "lon": None, "timestamp": None}
+        return {"lat": location.lat, "lon": location.lon, "timestamp": location.timestamp}
+
     @app.get("/api/events")
     async def api_events(_auth: None = Depends(require_auth)) -> list[dict[str, Any]]:
         """List all tracked events, most soonest-first."""
@@ -191,6 +199,7 @@ def _dashboard_context(
             "davpush_subscription_count": status.davpush_subscription_count,
             "davpush_enabled": settings.davpush_enabled,
             "started_at": status.started_at,
+            "current_location": status.current_location,
         },
         "counts": counts,
         "active": active_rows,

@@ -84,6 +84,7 @@ class ServiceStatus:
     davpush_subscription_count: int = 0
     davpush_last_error: str | None = None
     started_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    current_location: CurrentLocation | None = None
 
 
 class Tracker:
@@ -241,6 +242,7 @@ class Tracker:
         try:
             current_location = await self._dawarich.get_current_location()
             self.status.dawarich_reachable = True
+            self.status.current_location = current_location
         except Exception:
             self.status.dawarich_reachable = False
             logger.warning("tracker.dawarich_unreachable", exc_info=True)
