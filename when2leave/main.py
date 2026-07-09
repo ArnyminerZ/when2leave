@@ -85,6 +85,13 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         except Exception:
             logger.error("when2leave.initial_sync_failed", exc_info=True)
 
+        # Initial recompute so current location/travel times are populated immediately,
+        # rather than waiting up to RECOMPUTE_INTERVAL for the first scheduled tick.
+        try:
+            await tracker.recompute_tick()
+        except Exception:
+            logger.error("when2leave.initial_recompute_failed", exc_info=True)
+
         if settings.davpush_enabled:
             try:
                 await tracker.register_davpush_for_calendars()
