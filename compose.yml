@@ -2,7 +2,7 @@ services:
   when2leave:
     image: ghcr.io/arnyminerz/calendar-notifier:latest
     # Uncomment to build from source instead of pulling the published image:
-    # build: .
+    build: .
     container_name: when2leave
     restart: unless-stopped
     ports:
